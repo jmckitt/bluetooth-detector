@@ -1,14 +1,49 @@
 package us.mckittrick;
 
 import javax.bluetooth.*;
+import java.io.FileWriter;
 import java.io.IOException;
+import java.io.PrintWriter;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 
 public class BluetoothListener implements DiscoveryListener {
     private final Object inquiryCompletedEvent = new Object();
     private final RemoteDevice[] devices;
+    private final String csvFilePath;
+    private PrintWriter csvWriter;
+    CaffeineListCache cache;
+
 
     public BluetoothListener() {
         devices = new RemoteDevice[255]; // Arbitrary size
+
+        int maxCacheSize = 100000;
+        String maxCacheSizeProperty = System.getProperty("max.cache.size");
+        if (maxCacheSizeProperty != null) {
+            try {
+                maxCacheSize = Integer.parseInt(maxCacheSizeProperty);
+            } catch (NumberFormatException e) {
+                System.err.println("Invalid system property value, using default cache size of "+maxCacheSize+" entries.");
+            }
+        }
+
+        String csvFilePathProperty = System.getProperty("csv.file.path");
+        if (csvFilePathProperty == null) {
+            String timestamp = new SimpleDateFormat("yyyyMMddHHmmss").format(new Date());
+            csvFilePath = "/home/convention/bluetooth-" + timestamp + ".csv";
+        } else {
+            csvFilePath = csvFilePathProperty;
+        }
+
+        cache = new CaffeineListCache(maxCacheSize);
+
+        try {
+            csvWriter = new PrintWriter(new FileWriter(csvFilePath, true));
+            csvWriter.println("Device Name,Device Address");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     public void startDiscovery() {
@@ -35,7 +70,17 @@ public class BluetoothListener implements DiscoveryListener {
             System.out.println("Could not get friendly name");
         }
 
-        System.out.println(BluetoothDetector.RED+"* Device found: " + deviceName + " [" + device.getBluetoothAddress() + "]"+BluetoothDetector.RESET);
+        String deviceAddress = device.getBluetoothAddress();
+
+        if (cache.checkCache(deviceAddress)) {
+            return;
+        } else {
+            cache.put(deviceAddress);
+            System.out.println(BluetoothDetector.RED+"* Device found: " + deviceName + " [" + deviceAddress + "]"+BluetoothDetector.RESET);
+            csvWriter.println(deviceName + "," + deviceAddress);
+            csvWriter.flush();
+        }
+
     }
 
     @Override
@@ -43,7 +88,6 @@ public class BluetoothListener implements DiscoveryListener {
         synchronized (inquiryCompletedEvent) {
             inquiryCompletedEvent.notify();
         }
-        System.out.println("Device inquiry completed.");
     }
 
     @Override
