@@ -13,10 +13,14 @@ public class BluetoothListener implements DiscoveryListener {
     private final String csvFilePath;
     private PrintWriter csvWriter;
     CaffeineListCache cache;
+    VendorLookup vendorLookup;
+
+    public static final String BEEP = "\u0007";
 
 
     public BluetoothListener() {
         devices = new RemoteDevice[255]; // Arbitrary size
+        vendorLookup = new VendorLookup();
 
         int maxCacheSize = 100000;
         String maxCacheSizeProperty = System.getProperty("max.cache.size");
@@ -76,8 +80,12 @@ public class BluetoothListener implements DiscoveryListener {
             return;
         } else {
             cache.put(deviceAddress);
-            System.out.println(BluetoothDetector.RED+"* Device found: " + deviceName + " [" + deviceAddress + "]"+BluetoothDetector.RESET);
-            csvWriter.println(deviceName + "," + deviceAddress);
+
+            String oui = extractOUI(deviceAddress);
+            String vendor = vendorLookup.getVendorNameByMacPrefix(oui);
+
+            System.out.println(BluetoothDetector.RED+"* Device found: " + deviceName + " [" + deviceAddress + "]       Manufacturer["+vendor+"]"+BluetoothDetector.RESET+BEEP);
+            csvWriter.println(deviceName + "," + deviceAddress+","+vendor);
             csvWriter.flush();
         }
 
@@ -98,5 +106,27 @@ public class BluetoothListener implements DiscoveryListener {
     @Override
     public void servicesDiscovered(int transID, ServiceRecord[] records) {
         // Not used in this context
+    }
+
+    public static String extractOUI(String bluetoothId) {
+        if (bluetoothId == null || bluetoothId.length() < 6) {
+            throw new IllegalArgumentException("Invalid Bluetooth ID");
+        }
+        // Extract the first 6 characters (3 bytes)
+        String oui = bluetoothId.substring(0, 6);
+        // Format the OUI with colons
+        return formatOUI(oui);
+    }
+
+    private static String formatOUI(String oui) {
+        StringBuilder formattedOUI = new StringBuilder();
+        for (int i = 0; i < oui.length(); i++) {
+            formattedOUI.append(oui.charAt(i));
+            // Add a colon after every two characters, except for the last pair
+            if (i % 2 == 1 && i < oui.length() - 1) {
+                formattedOUI.append(':');
+            }
+        }
+        return formattedOUI.toString();
     }
 }
