@@ -85,7 +85,7 @@ public class BluetoothListener implements DiscoveryListener {
             String vendor = vendorLookup.getVendorNameByMacPrefix(oui);
 
             System.out.println(BluetoothDetector.RED+"* Device found: " + deviceName + " [" + deviceAddress + "]       Manufacturer["+vendor+"]"+BluetoothDetector.RESET+BEEP);
-            csvWriter.println(deviceName + "," + deviceAddress+","+vendor);
+            csvWriter.println(deviceName + "," + deviceAddress+","+escapeCsv(vendor));
             csvWriter.flush();
         }
 
@@ -129,4 +129,24 @@ public class BluetoothListener implements DiscoveryListener {
         }
         return formattedOUI.toString();
     }
+
+    public static String escapeCsv(String value) {
+        if (value == null) {
+            return "";
+        }
+
+        // Check if the value needs to be escaped
+        boolean needsEscaping = value.contains(",") || value.contains("\"") || value.contains("\n");
+
+        if (!needsEscaping) {
+            return value; // No need to escape
+        }
+
+        // Escape double quotes by replacing " with ""
+        String escapedValue = value.replace("\"", "\"\"");
+
+        // Enclose the value in double quotes
+        return "\"" + escapedValue + "\"";
+    }
+
 }
