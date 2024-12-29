@@ -14,6 +14,7 @@ public class BluetoothListener implements DiscoveryListener {
     private PrintWriter csvWriter;
     CaffeineListCache cache;
     VendorLookup vendorLookup;
+    GpsReader gpsReader;
 
     public static final String BEEP = "\u0007";
 
@@ -46,6 +47,14 @@ public class BluetoothListener implements DiscoveryListener {
             csvWriter = new PrintWriter(new FileWriter(csvFilePath, true));
             csvWriter.println("Device Name,Device Address");
         } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+        gpsReader = new GpsReader();
+        try {
+            System.out.println("GpsReader initialized. " + gpsReader.getCoordinates());
+        } catch (Exception e) {
+            System.out.println("Failed to initialize GpsReader: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -83,9 +92,10 @@ public class BluetoothListener implements DiscoveryListener {
 
             String oui = extractOUI(deviceAddress);
             String vendor = vendorLookup.getVendorNameByMacPrefix(oui);
+            String gpsCoordinates = gpsReader.getCoordinates();
 
-            System.out.println(BluetoothDetector.RED+"* Device found: " + deviceName + " [" + deviceAddress + "]       Manufacturer["+vendor+"]"+BluetoothDetector.RESET+BEEP);
-            csvWriter.println(deviceName + "," + deviceAddress+","+escapeCsv(vendor));
+            System.out.println(BluetoothDetector.RED+"* Device found: " + deviceName + " [" + deviceAddress + "]       Manufacturer["+vendor+"]"+"   "+gpsCoordinates+BluetoothDetector.RESET+BEEP);
+            csvWriter.println(deviceName + "," + deviceAddress+","+escapeCsv(vendor)+","+escapeCsv(generateGoogleMapsLink(gpsCoordinates)));
             csvWriter.flush();
         }
 
@@ -147,6 +157,19 @@ public class BluetoothListener implements DiscoveryListener {
 
         // Enclose the value in double quotes
         return "\"" + escapedValue + "\"";
+    }
+
+    public static String generateGoogleMapsLink(String gpsCoordinates) {
+        // Split the input string into latitude and longitude
+        String[] coordinates = gpsCoordinates.split(",");
+        if (coordinates.length != 2) {
+            return "Malformed coordinates.  Unavailable.";
+        }
+
+        String latitude = coordinates[0].trim();
+        String longitude = coordinates[1].trim();
+
+        return String.format("https://www.google.com/maps?q=%s,%s", latitude, longitude);
     }
 
 }

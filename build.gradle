@@ -10,6 +10,7 @@ targetCompatibility = JavaVersion.VERSION_22
 
 repositories {
     mavenCentral()
+    maven { url "https://jitpack.io" }
 }
 
 dependencies {
@@ -35,3 +36,21 @@ shadowJar {
         )
     }
 }
+
+shadowJar {
+    // Include the native library in the JAR
+    from('src/main/resources/native') {
+        into('.') // This will place the .so file in a 'native' directory inside the JAR
+    }
+}
+
+
+task copyNativeLibs(type: Copy) {
+    from('src/main/resources/native') {
+        include '*.so'
+    }
+    into("${buildDir}/libs/native")
+}
+
+build.dependsOn(copyNativeLibs)
+
